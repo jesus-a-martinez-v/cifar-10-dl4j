@@ -11,8 +11,6 @@ import org.deeplearning4j.nn.conf.layers._
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork
 import org.deeplearning4j.nn.weights.WeightInit
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener
-import org.deeplearning4j.ui.stats.StatsListener
-import org.deeplearning4j.ui.storage.InMemoryStatsStorage
 import org.deeplearning4j.util.ModelSerializer
 import org.nd4j.linalg.activations.Activation
 import org.nd4j.linalg.api.buffer.DataBuffer
@@ -23,53 +21,43 @@ import scala.util.Try
 
 
 object CIFAR10 extends App {
+  // Input images dimensions
   private val height = 32
   private val width = 32
   private val channels = 3
+
+  // CIFAR dataset parameters.
   private val numberOfLabels = CifarLoader.NUM_LABELS
   private val numberOfSamples = CifarLoader.NUM_TRAIN_IMAGES
   private val numberOfTestSamples = CifarLoader.NUM_TEST_IMAGES
-  private val batchSize = 100
+
+  // Hyper parameters.
+  private val batchSize = 64
   private val iterations = 1
-  private val freIterations = 50
+  private val printStatisticsFrequency = 50
+
   private val randomSeed = 42
   private val preProcessCifar = false
-  private val numberOfEpochs = 50
+  private val numberOfEpochs = 15
+  private val learningRate = 1e-2
+  private val biasLearningRate = 2 * learningRate
+  private val dropOut = 0.2
+
   private val dataPath = FilenameUtils.concat(System.getProperty("user.dir"), "/")
 
   DataTypeUtil.setDTypeForContext(DataBuffer.Type.FLOAT)
 
-  val model = trainModelByCifarWithNet()
-  // val uiServer = UIServer.getInstance()
-  val statsStorage = new InMemoryStatsStorage
+  val model = getModel
+  model.setListeners(new ScoreIterationListener(printStatisticsFrequency))
 
-  // uiServer.attach(statsStorage)
+  val trainingDataSet = new CifarDataSetIterator(batchSize, numberOfSamples, Array(height, width, channels), preProcessCifar, true)
+  val testDataSet = new CifarDataSetIterator(batchSize, numberOfTestSamples, Array(height, width, channels), preProcessCifar, false)
 
-  model.setListeners(
-    new StatsListener(statsStorage),
-    new ScoreIterationListener(freIterations))
+  trainModel(model)
+  evaluateModel(model)
+  saveModel(model, "cifar_10_net.json")
 
-  val cifar = new CifarDataSetIterator(batchSize, numberOfSamples, Array(height, width, channels), preProcessCifar, true)
-  val cifarEval = new CifarDataSetIterator(batchSize, numberOfTestSamples, Array(height, width, channels), preProcessCifar, false)
-
-  for (epoch <- 1 to numberOfEpochs) {
-    println(s"Epoch --------- $epoch")
-    model.fit(cifar)
-  }
-
-  val evaluation = new Evaluation(cifarEval.getLabels)
-  while (cifarEval.hasNext) {
-    val testDataSet = cifarEval.next(batchSize)
-    val output = model.output(testDataSet.getFeatureMatrix)
-
-    evaluation.eval(testDataSet.getLabels, output)
-  }
-
-  println(evaluation.stats())
-
-  saveModel(model, "trainModelByCifarWithAlexNet_model.json")
-
-  private def trainModelByCifarWithNet() = {
+  private def getModel = {
     val firstConvolutionLayer = new ConvolutionLayer
       .Builder(Array(4, 4), Array(1, 1), Array(0, 0))
       .name("cnn1")
@@ -77,9 +65,9 @@ object CIFAR10 extends App {
       .nIn(3)
       .nOut(64)
       .weightInit(WeightInit.XAVIER_UNIFORM)
-      .activation(Activation.RELU).learningRate(1e-2)
+      .activation(Activation.RELU).learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val secondConvolutionLayer = new ConvolutionLayer
@@ -89,9 +77,9 @@ object CIFAR10 extends App {
       .nOut(64)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val firstMaxPoolLayer = new SubsamplingLayer
@@ -106,9 +94,9 @@ object CIFAR10 extends App {
       .nOut(96)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val fourthConvolutionLayer = new ConvolutionLayer.
@@ -118,9 +106,9 @@ object CIFAR10 extends App {
       .nOut(96)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val fifthConvolutionLayer = new ConvolutionLayer
@@ -130,9 +118,9 @@ object CIFAR10 extends App {
       .nOut(128)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val sixthConvolutionLayer = new ConvolutionLayer
@@ -142,9 +130,9 @@ object CIFAR10 extends App {
       .nOut(128)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val seventhConvolutionLayer = new ConvolutionLayer
@@ -154,9 +142,9 @@ object CIFAR10 extends App {
       .nOut(256)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val eighthConvolutionLayer = new ConvolutionLayer
@@ -166,9 +154,9 @@ object CIFAR10 extends App {
       .nOut(256)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val secondMaxPoolLayer = new SubsamplingLayer
@@ -188,22 +176,22 @@ object CIFAR10 extends App {
     val firstDropOutLayer = new DropoutLayer
       .Builder()
       .name("dropout1")
-      .dropOut(0.2)
+      .dropOut(dropOut)
       .build()
 
     val secondFullyConnectedLayer = new DenseLayer
       .Builder()
       .name("ffn2")
       .nOut(1024)
-      .learningRate(1e-2)
+      .learningRate(learningRate)
       .biasInit(1e-2)
-      .biasLearningRate(1e-2 * 2)
+      .biasLearningRate(biasLearningRate)
       .build()
 
     val secondDropOutLayer = new DropoutLayer
       .Builder()
       .name("dropout2")
-      .dropOut(0.2)
+      .dropOut(dropOut)
       .build()
 
     val outputLayer = new OutputLayer
@@ -213,36 +201,39 @@ object CIFAR10 extends App {
       .activation(Activation.SOFTMAX)
       .build()
 
-    val configuration = new NeuralNetConfiguration.Builder()
-      .seed(randomSeed)
-      .cacheMode(CacheMode.DEVICE)
-      .updater(Updater.ADAM)
-      .iterations(iterations)
-      .gradientNormalization(GradientNormalization.RenormalizeL2PerLayer)
-      .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-      .l1(1e-4)
-      .regularization(true)
-      .l2(5 * 1e-4)
-      .list()
-      .layer(0, firstConvolutionLayer)
-      .layer(1, secondConvolutionLayer)
-      .layer(2, firstMaxPoolLayer)
-      .layer(3, thirdConvolutionLayer)
-      .layer(4, fourthConvolutionLayer)
-      .layer(5, fifthConvolutionLayer)
-      .layer(6, sixthConvolutionLayer)
-      .layer(7, seventhConvolutionLayer)
-      .layer(8, eighthConvolutionLayer)
-      .layer(9, secondMaxPoolLayer)
-      .layer(10, firstFullyConnectedLayer)
-      .layer(11, firstDropOutLayer)
-      .layer(12, secondFullyConnectedLayer)
-      .layer(13, secondDropOutLayer)
-      .layer(14, outputLayer)
-      .backprop(true)
-      .pretrain(false)
-      .setInputType(InputType.convolutional(height, width, channels))
-      .build()
+    val layers = List(
+      firstConvolutionLayer,
+      secondConvolutionLayer,
+      firstMaxPoolLayer,
+      thirdConvolutionLayer,
+      fourthConvolutionLayer,
+      fifthConvolutionLayer,
+      sixthConvolutionLayer,
+      seventhConvolutionLayer,
+      eighthConvolutionLayer,
+      secondMaxPoolLayer,
+      firstFullyConnectedLayer,
+      firstDropOutLayer,
+      secondFullyConnectedLayer,
+      secondDropOutLayer,
+      outputLayer)
+
+    val configuration =
+      new NeuralNetConfiguration.Builder()
+        .seed(randomSeed)
+        .cacheMode(CacheMode.DEVICE)
+        .updater(Updater.ADAM)
+        .iterations(iterations)
+        .gradientNormalization(GradientNormalization.RenormalizeL2PerLayer)
+        .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+        .regularization(true)
+        .l1(1e-4)
+        .l2(5 * 1e-4)
+        .list(layers:_*)
+        .backprop(true)
+        .pretrain(false)
+        .setInputType(InputType.convolutional(height, width, channels))
+        .build()
 
     val model = new MultiLayerNetwork(configuration)
     model.init()
@@ -250,11 +241,29 @@ object CIFAR10 extends App {
     model
   }
 
+  private def trainModel(model: MultiLayerNetwork): Unit =
+    for (epoch <- 1 to numberOfEpochs) {
+      println(s"Epoch --------- $epoch")
+      model.fit(trainingDataSet)
+    }
+
+  private def evaluateModel(model: MultiLayerNetwork): Unit = {
+    val evaluation = new Evaluation(testDataSet.getLabels)
+    while (testDataSet.hasNext) {
+      val testBatch = testDataSet.next(batchSize)
+      val output = model.output(testBatch.getFeatureMatrix)
+
+      evaluation.eval(testBatch.getLabels, output)
+    }
+
+    println(evaluation.stats())
+  }
+
   private def saveModel(model: MultiLayerNetwork, fileName: String) = {
     val locationModelFile = new File(dataPath + fileName)
 
     if (Try(ModelSerializer.writeModel(model, locationModelFile, false)).isFailure) {
-      println("Saving model wasn't successful")
+      println("Couldn't save model successfully.")
     }
 
     model
