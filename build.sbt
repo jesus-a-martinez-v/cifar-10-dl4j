@@ -10,6 +10,7 @@ libraryDependencies ++= {
   val dl4jVersion = "0.9.1"
 
   Seq(
+    "com.typesafe" % "config" % "1.3.3",
     "org.nd4j" % "nd4j-native-platform" % dl4jVersion,
     "org.deeplearning4j" % "deeplearning4j-core" % dl4jVersion,
     "org.datavec" % "datavec-api" % dl4jVersion,

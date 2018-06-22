@@ -21,37 +21,21 @@ import scala.util.Try
 
 
 object CIFAR10 extends App {
-  // Input images dimensions
-  private val height = 32
-  private val width = 32
-  private val channels = 3
 
   // CIFAR dataset parameters.
   private val numberOfLabels = CifarLoader.NUM_LABELS
   private val numberOfSamples = CifarLoader.NUM_TRAIN_IMAGES
   private val numberOfTestSamples = CifarLoader.NUM_TEST_IMAGES
-
-  // Hyper parameters.
-  private val batchSize = 64
-  private val iterations = 1
-  private val printStatisticsFrequency = 50
-
-  private val randomSeed = 42
-  private val preProcessCifar = false
-  private val numberOfEpochs = 15
-  private val learningRate = 1e-2
-  private val biasLearningRate = 2 * learningRate
-  private val dropOut = 0.2
-
   private val dataPath = FilenameUtils.concat(System.getProperty("user.dir"), "/")
 
+  val biasLearningRate = 2 * Configuration.learningRate
   DataTypeUtil.setDTypeForContext(DataBuffer.Type.FLOAT)
 
   val model = getModel
-  model.setListeners(new ScoreIterationListener(printStatisticsFrequency))
+  model.setListeners(new ScoreIterationListener(Configuration.printStatisticsFrequency))
 
-  val trainingDataSet = new CifarDataSetIterator(batchSize, numberOfSamples, Array(height, width, channels), preProcessCifar, true)
-  val testDataSet = new CifarDataSetIterator(batchSize, numberOfTestSamples, Array(height, width, channels), preProcessCifar, false)
+  val trainingDataSet = new CifarDataSetIterator(Configuration.batchSize, numberOfSamples, Array(Configuration.height, Configuration.width, Configuration.channels), Configuration.preProcessCifar, true)
+  val testDataSet = new CifarDataSetIterator(Configuration.batchSize, numberOfTestSamples, Array(Configuration.height, Configuration.width, Configuration.channels), Configuration.preProcessCifar, false)
 
   trainModel(model)
   evaluateModel(model)
@@ -65,7 +49,7 @@ object CIFAR10 extends App {
       .nIn(3)
       .nOut(64)
       .weightInit(WeightInit.XAVIER_UNIFORM)
-      .activation(Activation.RELU).learningRate(learningRate)
+      .activation(Activation.RELU).learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -77,7 +61,7 @@ object CIFAR10 extends App {
       .nOut(64)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -94,7 +78,7 @@ object CIFAR10 extends App {
       .nOut(96)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -106,7 +90,7 @@ object CIFAR10 extends App {
       .nOut(96)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -118,7 +102,7 @@ object CIFAR10 extends App {
       .nOut(128)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -130,7 +114,7 @@ object CIFAR10 extends App {
       .nOut(128)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -142,7 +126,7 @@ object CIFAR10 extends App {
       .nOut(256)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -154,7 +138,7 @@ object CIFAR10 extends App {
       .nOut(256)
       .weightInit(WeightInit.XAVIER_UNIFORM)
       .activation(Activation.RELU)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -176,14 +160,14 @@ object CIFAR10 extends App {
     val firstDropOutLayer = new DropoutLayer
       .Builder()
       .name("dropout1")
-      .dropOut(dropOut)
+      .dropOut(Configuration.dropOut)
       .build()
 
     val secondFullyConnectedLayer = new DenseLayer
       .Builder()
       .name("ffn2")
       .nOut(1024)
-      .learningRate(learningRate)
+      .learningRate(Configuration.learningRate)
       .biasInit(1e-2)
       .biasLearningRate(biasLearningRate)
       .build()
@@ -191,7 +175,7 @@ object CIFAR10 extends App {
     val secondDropOutLayer = new DropoutLayer
       .Builder()
       .name("dropout2")
-      .dropOut(dropOut)
+      .dropOut(Configuration.dropOut)
       .build()
 
     val outputLayer = new OutputLayer
@@ -220,10 +204,10 @@ object CIFAR10 extends App {
 
     val configuration =
       new NeuralNetConfiguration.Builder()
-        .seed(randomSeed)
+        .seed(Configuration.randomSeed)
         .cacheMode(CacheMode.DEVICE)
         .updater(Updater.ADAM)
-        .iterations(iterations)
+        .iterations(Configuration.iterations)
         .gradientNormalization(GradientNormalization.RenormalizeL2PerLayer)
         .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
         .regularization(true)
@@ -232,7 +216,7 @@ object CIFAR10 extends App {
         .list(layers:_*)
         .backprop(true)
         .pretrain(false)
-        .setInputType(InputType.convolutional(height, width, channels))
+        .setInputType(InputType.convolutional(Configuration.height, Configuration.width, Configuration.channels))
         .build()
 
     val model = new MultiLayerNetwork(configuration)
@@ -242,7 +226,7 @@ object CIFAR10 extends App {
   }
 
   private def trainModel(model: MultiLayerNetwork): Unit =
-    for (epoch <- 1 to numberOfEpochs) {
+    for (epoch <- 1 to Configuration.numberOfEpochs) {
       println(s"Epoch --------- $epoch")
       model.fit(trainingDataSet)
     }
@@ -250,7 +234,7 @@ object CIFAR10 extends App {
   private def evaluateModel(model: MultiLayerNetwork): Unit = {
     val evaluation = new Evaluation(testDataSet.getLabels)
     while (testDataSet.hasNext) {
-      val testBatch = testDataSet.next(batchSize)
+      val testBatch = testDataSet.next(Configuration.batchSize)
       val output = model.output(testBatch.getFeatureMatrix)
 
       evaluation.eval(testBatch.getLabels, output)
